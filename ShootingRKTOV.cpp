@@ -62,6 +62,7 @@ public:
 
 	void ComputeInterior();
 	void ComputeInteriorAdaptive();
+	void ComputeInteriorAdaptiveBisection();
 
 	CPolytropeShooting();
 	CPolytropeShooting(const RealType fN, const RealType fSig);
@@ -168,9 +169,9 @@ void CPolytropeShooting::ComputeInterior()
 
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
-	const RealType fAlmostZero ( 1e-4);
-	const RealType fEnough(1.e-1);
-	RealType fStep(1.e-4);
+	const RealType fAlmostZero ( 1e-12);
+	const RealType fEnough(1.e-12);
+	RealType fStep(1.e-12);
 
 	SInteriorSpaceTOV PointOfInterest, Small, Big;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
@@ -193,6 +194,57 @@ void CPolytropeShooting::ComputeInteriorAdaptive()
 	}
 }
 
+void CPolytropeShooting::ComputeInteriorAdaptiveBisection()
+{
+	const RealType fAlmostZero ( 1e-2);
+	const RealType fEnough(1.e-12);
+	RealType fStep(1.e-12);
+
+	SInteriorSpaceTOV PointOfInterest, Small, Big;
+	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
+	cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+	while (PointOfInterest.fTheta>fAlmostZero)
+	{
+		do
+		{
+			fStep /= 2.;
+			Small = m_PropagateRKMethod( m_PropagateRKMethod(PointOfInterest,fStep/2.) , fStep/2.);
+			Big   = m_PropagateRKMethod( PointOfInterest,fStep);
+			//cout<<" "<<Small<<" "<<m_MassTilda(Small)<<" "<<fStep/2.<<endl;
+			//cout<<" "<<Big<<" "<<m_MassTilda(Big)<<" "<<fStep<<endl;
+			//cout<<" "<<MultiDimRelativeDifference(Small,Big) <<" "<< fEnough<<endl;
+		}
+		while( (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big) );
+		PointOfInterest=Small;
+		cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+		fStep *= 4.;
+	}
+	fStep /= 8.;
+	//Find the such fXi so the fTheta<0	
+	SInteriorSpaceTOV Left, Right;
+	Left=PointOfInterest; //>0
+	//cout<<Left<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+	while(PointOfInterest.fTheta>0.)
+	{
+		PointOfInterest=m_PropagateRKMethod( PointOfInterest,fStep);
+	}
+	Right = PointOfInterest;
+	//cout<<Right<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+
+	const RealType fZero(1e-15);
+	//Do the bisection
+	while(Left.fTheta>fZero)
+	{
+		fStep=(Right.fXi-Left.fXi)/2.;
+		PointOfInterest=m_PropagateRKMethod( Left,fStep);
+		if(PointOfInterest.fTheta>0.) Left=PointOfInterest;
+		else Right=PointOfInterest;
+
+	}
+	cout<<Left<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+}
+
+
 
 int main(int argc, char** argv)
 {
@@ -204,7 +256,7 @@ int main(int argc, char** argv)
 	}
 
 	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]));
-	Poly.ComputeInteriorAdaptive();
+	Poly.ComputeInteriorAdaptiveBisection();
 	//Poly.ComputeInterior();
 
 
