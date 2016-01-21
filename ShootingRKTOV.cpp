@@ -169,7 +169,7 @@ void CPolytropeShooting::ComputeInterior()
 
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
-	const RealType fAlmostZero ( 1e-12);
+	const RealType fAlmostZero ( 1e-10);
 	const RealType fEnough(1.e-12);
 	RealType fStep(1.e-12);
 
@@ -187,7 +187,7 @@ void CPolytropeShooting::ComputeInteriorAdaptive()
 			//cout<<" "<<Big<<" "<<m_MassTilda(Big)<<" "<<fStep<<endl;
 			//cout<<" "<<MultiDimRelativeDifference(Small,Big) <<" "<< fEnough<<endl;
 		}
-		while( (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big) );
+		while(  (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big)  ||  Big.fTheta < 0. );
 		PointOfInterest=Small;
 		cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
 		fStep *= 4.;
@@ -196,8 +196,8 @@ void CPolytropeShooting::ComputeInteriorAdaptive()
 
 void CPolytropeShooting::ComputeInteriorAdaptiveBisection()
 {
-	const RealType fAlmostZero ( 1e-2);
-	const RealType fEnough(1.e-12);
+	const RealType fAlmostZero ( 1e-5);
+	const RealType fEnough(1.e-7);
 	RealType fStep(1.e-12);
 
 	SInteriorSpaceTOV PointOfInterest, Small, Big;
@@ -214,7 +214,7 @@ void CPolytropeShooting::ComputeInteriorAdaptiveBisection()
 			//cout<<" "<<Big<<" "<<m_MassTilda(Big)<<" "<<fStep<<endl;
 			//cout<<" "<<MultiDimRelativeDifference(Small,Big) <<" "<< fEnough<<endl;
 		}
-		while( (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big) );
+		while( (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big) || Big.fTheta < 0. );
 		PointOfInterest=Small;
 		cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
 		fStep *= 4.;
