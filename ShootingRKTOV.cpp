@@ -40,6 +40,10 @@ RealType MultiDimRelativeDifference(const SInteriorSpaceTOV A, const SInteriorSp
 	return sqrt(pow((B.fXi-A.fXi)/B.fXi, 2.) + pow((B.fV-A.fV)/B.fV, 2.) + pow((B.fTheta-A.fTheta)/B.fTheta, 2.) + pow((B.fDVDXi-A.fDVDXi)/B.fDVDXi, 2.) + pow((B.fDThetaDXi-A.fDThetaDXi)/B.fDThetaDXi, 2.));
 }
 
+bool isnan(const SInteriorSpaceTOV A)
+{
+	return ( isnan(A.fXi) || isnan(A.fV) || isnan(A.fTheta) || isnan(A.fDVDXi) || isnan(A.fDThetaDXi) );
+}
 
 class CPolytropeShooting
 {
@@ -164,17 +168,28 @@ void CPolytropeShooting::ComputeInterior()
 
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
-	const RealType fAlmostZero ( 1e-5);
-	const RealType fStep(1.e-4);
-	const RealType fEnough
+	const RealType fAlmostZero ( 1e-4);
+	const RealType fEnough(1.e-1);
+	RealType fStep(1.e-4);
 
-	SInteriorSpaceTOV PointOfInterest;
+	SInteriorSpaceTOV PointOfInterest, Small, Big;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
-	cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<endl;
+	cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
 	while (PointOfInterest.fTheta>fAlmostZero)
 	{
-		
-
+		do
+		{
+			fStep /= 2.;
+			Small = m_PropagateRKMethod( m_PropagateRKMethod(PointOfInterest,fStep/2.) , fStep/2.);
+			Big   = m_PropagateRKMethod( PointOfInterest,fStep);
+			//cout<<" "<<Small<<" "<<m_MassTilda(Small)<<" "<<fStep/2.<<endl;
+			//cout<<" "<<Big<<" "<<m_MassTilda(Big)<<" "<<fStep<<endl;
+			//cout<<" "<<MultiDimRelativeDifference(Small,Big) <<" "<< fEnough<<endl;
+		}
+		while( (MultiDimRelativeDifference(Small,Big) > fEnough) || isnan(Big) );
+		PointOfInterest=Small;
+		cout<<PointOfInterest<<" "<<m_MassTilda(PointOfInterest)<<" "<<fStep<<endl;
+		fStep *= 4.;
 	}
 }
 
@@ -189,7 +204,8 @@ int main(int argc, char** argv)
 	}
 
 	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]));
-	Poly.ComputeInterior();
+	Poly.ComputeInteriorAdaptive();
+	//Poly.ComputeInterior();
 
 
 	return 0;
