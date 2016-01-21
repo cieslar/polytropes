@@ -1,2 +1,3 @@
 all:
-	g++ -o exe ShootingRK.cpp
+	g++ -o PolyShooting ShootingRK.cpp
+	g++ -o PolyTOVShooting ShootingRKTOV.cpp
