@@ -7,10 +7,10 @@ using namespace std;
 
 #define RealType double
 
-//TODO change to SI or CGS
-const RealType gfG(1.);
-const RealType gfC(1.);
-
+//Can we estimate the needed precision of constants?
+const RealType gfG(6.67408e-8);///<Gravitational constant in [cm^3 g^-1 s^-2]
+const RealType gfC(29979245800.);///<Speed of light in [cm s-1] 
+                  
 struct SInteriorSpaceTOV
 {
 	RealType fR;
@@ -69,16 +69,18 @@ SInteriorSpaceTOV operator+(const SInteriorSpaceTOV &Left, const SInteriorSpaceT
 SInteriorSpaceTOV operator/(const SInteriorSpaceTOV Point, const RealType fNumber)
 {
 	SInteriorSpaceTOV Result(Point);
-	Result.fR/=fNumber;
-	Result.fM/=fNumber;
-	Result.fMProper/=fNumber;
-	Result.fP/=fNumber;
-	Result.fPhi/=fNumber;
 
-	Result.fDMDR/=fNumber;
-	Result.fDMProperDR/=fNumber;
-	Result.fDPDR/=fNumber;
-	Result.fDPhiDR/=fNumber;
+	Result.fR /= fNumber;
+	Result.fM /= fNumber;
+	Result.fMProper /= fNumber;
+	Result.fP /= fNumber;
+	Result.fPhi /= fNumber;
+
+	Result.fDMDR /= fNumber;
+	Result.fDMProperDR /= fNumber;
+	Result.fDPDR /= fNumber;
+	Result.fDPhiDR /= fNumber;
+
 	return Result;
 }
 
@@ -89,7 +91,8 @@ ostream &operator<<( ostream &output, const SInteriorSpaceTOV &Point )
 	return output;
 }
 
-//how to impreve the name of this function???
+//how to improve the name of this function???
+//Computes the realtive multidim cartesian difference for values changed by integration method
 RealType MultiDimRelativeDifference(const SInteriorSpaceTOV A, const SInteriorSpaceTOV B)
 {
 	return sqrt(pow((B.fM-A.fM)/B.fM, 2.) 
@@ -127,7 +130,7 @@ public:
 
 	RealType ComputePhiConstant(const SInteriorSpaceTOV Point) const;
 
-	CPolytropeShooting(const RealType fGamma, const RealType fRhoC);
+	CPolytropeShooting(const RealType fGamma, const RealType fK, const RealType fRhoC);
 	~CPolytropeShooting(){};
 
 };
@@ -173,14 +176,14 @@ RealType CPolytropeShooting::m_MProperDerivative(const SInteriorSpaceTOV Point) 
 
 RealType CPolytropeShooting::m_PDerivative(const SInteriorSpaceTOV Point) const
 {
-	return ( -gfG*Point.fM*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma) )*(1.+pow(Point.fP,fPolytropicGamma+1.)/(fgC*m_fPolytropicK2Gamma))*(1.+4.*M_PI*Point.fR*Point.fR*Point.fR*Point.fP/(Point.fM*gfC))/(1.-(2.*gfG*Point.fM)/(Point.fR*gfC*gfC));
+	return ( -gfG*Point.fM*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma)/(Point.fR*Point.fR) )*(1.+pow(Point.fP,fPolytropicGamma+1.)/(gfC*gfC*m_fPolytropicK2Gamma))*(1.+4.*M_PI*Point.fR*Point.fR*Point.fR*Point.fP/(Point.fM*gfC*gfC))/(1.-(2.*gfG*Point.fM)/(Point.fR*gfC*gfC));
 }
 
 
 //The metric
 RealType CPolytropeShooting::m_PhiDerivative(const SInteriorSpaceTOV Point) const
 {
-	return -2./(Point.P+gfC*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma) * 	m_PDerivative(Point);
+	return (-2./(Point.fP + gfC*gfC * m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma))) * m_PDerivative(Point);
 }
 
 SInteriorSpaceTOV CPolytropeShooting::m_PropagateRKMethod(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const
@@ -250,8 +253,8 @@ void CPolytropeShooting::ComputeInterior()
 {
 	//const RealType fAlmostZero ( 10.*std::numeric_limits<RealType>::epsilon() );
 
-	const RealType fAlmostZero ( 1e-5);
-	const RealType fStep(1.e-4);
+	const RealType fAlmostZero ( 1e-2);
+	const RealType fStep(1.e-14);
 	SInteriorSpaceTOV PointOfInterest;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
 	cout<<PointOfInterest<<endl;
@@ -343,16 +346,17 @@ void CPolytropeShooting::ComputeInteriorAdaptiveBisection()
 #endif
 int main(int argc, char** argv)
 {
-	if(argc != 3)
+	if(argc != 4)
 	{
-		cout<<"Wrong arguments"<<endl;
-		cout<<"./PolyTOVShooting fPolytropicGamma fRhoCentre"<<endl;
+		cout<<"Wrong number of arguments."<<endl;
+		cout<<"Correct usage (values in CGS):"<<endl;
+		cout<<"./PolyTOVShooting fPolytropicGamma fPolytropicK fRhoCentre"<<endl;
 		return 1;
 	}
 
-	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]));
-	Poly.ComputeInteriorAdaptive();
-	//Poly.ComputeInterior();
+	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]),atof(argv[3]));
+	//Poly.ComputeInteriorAdaptive();
+	Poly.ComputeInterior();
 
 
 	return 0;
