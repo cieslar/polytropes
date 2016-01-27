@@ -7,6 +7,10 @@ using namespace std;
 
 #define RealType double
 
+//TODO change to SI or CGS
+const RealType gfG(1.);
+const RealType gfC(1.);
+
 struct SInteriorSpaceTOV
 {
 	RealType fR;
@@ -112,8 +116,10 @@ protected:
 	SInteriorSpaceTOV m_ApproximateSolutionInZero(const RealType fEpsilon) const; 
 	SInteriorSpaceTOV m_PropagateRKMethod(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const;
 
+	RealType m_fPolytropicK2Gamma;
 public:
 	RealType fPolytropicGamma;
+	RealType fPolytropicK;
 	RealType fRhoCentre;
 
 	void ComputeInterior();
@@ -127,10 +133,13 @@ public:
 };
 
 
-CPolytropeShooting::CPolytropeShooting(const RealType fGamma, const RealType fRhoC)
+CPolytropeShooting::CPolytropeShooting(const RealType fGamma, const RealType fK, const RealType fRhoC)
 {
 	fPolytropicGamma=fGamma;
+	fPolytropicK=fK;
 	fRhoCentre=fRhoC;
+
+	m_fPolytropicK2Gamma=pow(fPolytropicK,fPolytropicGamma);
 }
 
 SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType fEpsilon) const
@@ -153,22 +162,25 @@ SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType
 
 RealType CPolytropeShooting::m_MDerivative(const SInteriorSpaceTOV Point) const
 {
-	return 0.;
+	return ( 4.*M_PI*m_fPolytropicK2Gamma*Point.fR*Point.fR/pow(Point.fP,fPolytropicGamma) );
 }
 
+//TODO check if the metric is ok (after Shapiro)
 RealType CPolytropeShooting::m_MProperDerivative(const SInteriorSpaceTOV Point) const
 {
-	return 0.;
+	return ( 4.*M_PI*m_fPolytropicK2Gamma*Point.fR*Point.fR/pow(Point.fP,fPolytropicGamma) )*pow( (1.- (2.*gfG*Point.fM)/(Point.fR*gfC*gfC) ), -0.5 );
 }
 
 RealType CPolytropeShooting::m_PDerivative(const SInteriorSpaceTOV Point) const
 {
-	return 0.;
+	return ( -gfG*Point.fM*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma) )*(1.+pow(Point.fP,fPolytropicGamma+1.)/(fgC*m_fPolytropicK2Gamma))*(1.+4.*M_PI*Point.fR*Point.fR*Point.fR*Point.fP/(Point.fM*gfC))/(1.-(2.*gfG*Point.fM)/(Point.fR*gfC*gfC));
 }
 
+
+//The metric
 RealType CPolytropeShooting::m_PhiDerivative(const SInteriorSpaceTOV Point) const
 {
-	return 0.;
+	return -2./(Point.P+gfC*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma) * 	m_PDerivative(Point);
 }
 
 SInteriorSpaceTOV CPolytropeShooting::m_PropagateRKMethod(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const
