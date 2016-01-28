@@ -83,7 +83,14 @@ SInteriorSpaceTOV operator/(const SInteriorSpaceTOV Point, const RealType fNumbe
 
 	return Result;
 }
-
+#include <sstream>
+std::string DescInteriorSpaceTOV()
+{
+	ostringstream output;
+	output <<"#R[cm] M[g] MProper[g] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
+	return output.str();
+	
+}
 ostream &operator<<( ostream &output, const SInteriorSpaceTOV &Point )
 {
 	output << scientific;
@@ -151,13 +158,20 @@ SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType
 
 	Result.fR=fEpsilon;
 	Result.fM=0.;
-	Result.fP=0.;
+	Result.fP=fPolytropicK*pow(fRhoCentre,fPolytropicGamma);
 	Result.fPhi=1.;
 
 	Result.fDMDR=m_MDerivative(Result);
 	Result.fDMProperDR=m_MProperDerivative(Result);
-	Result.fDPDR=m_PDerivative(Result);
-	Result.fDPhiDR=m_PhiDerivative(Result);
+
+	//Result.fDPDR=m_PDerivative(Result);
+	//Result.fDPhiDR=m_PhiDerivative(Result);
+	Result.fDPDR=0.;
+	Result.fDPDR=0.;
+
+
+	//TODO how to get over the very small mass?
+	Result.fM=Result.fDMDR*fEpsilon;
 
 	return Result;
 }
@@ -253,10 +267,11 @@ void CPolytropeShooting::ComputeInterior()
 {
 	//const RealType fAlmostZero ( 10.*std::numeric_limits<RealType>::epsilon() );
 
-	const RealType fAlmostZero ( 1e-2);
-	const RealType fStep(1.e-14);
+	const RealType fAlmostZero ( 1e-4);
+	const RealType fStep(1.e-5);
 	SInteriorSpaceTOV PointOfInterest;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
+	cout<<DescInteriorSpaceTOV();
 	cout<<PointOfInterest<<endl;
 	while (PointOfInterest.fP>fAlmostZero)
 	{
@@ -268,11 +283,12 @@ void CPolytropeShooting::ComputeInterior()
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
 	const RealType fAlmostZero ( 1e-10);
-	const RealType fEnough(1.e-12);
-	RealType fStep(1.e-12);
+	const RealType fEnough(1.e-6);
+	RealType fStep(1.e-10);
 
 	SInteriorSpaceTOV PointOfInterest, Small, Big;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
+	cout<<DescInteriorSpaceTOV();
 	cout<<PointOfInterest<<" "<<fStep<<endl;
 	while (PointOfInterest.fP>fAlmostZero)
 	{
@@ -355,8 +371,8 @@ int main(int argc, char** argv)
 	}
 
 	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]),atof(argv[3]));
-	//Poly.ComputeInteriorAdaptive();
-	Poly.ComputeInterior();
+	Poly.ComputeInteriorAdaptive();
+	//Poly.ComputeInterior();
 
 
 	return 0;
