@@ -19,8 +19,9 @@ RealType DeKappify(const RealType fLoreneKappa, const RealType fGamma)
 	const RealType cfRhoNuc(1.66e14);///<[g cm^-3]
 	const RealType cfNNuc(1.e38);///<[cm^-3]
 	//Translates Lorene units to cgs
-	return gfBaryonMass*fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
+//	return gfBaryonMass*fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
 
+	return fLoreneKappa*gfC*gfC;
 
 	//Changes the equations from mass density to barion density to be consistent with Lorene.
 	//return fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
@@ -102,14 +103,15 @@ SInteriorSpaceTOV operator/(const SInteriorSpaceTOV Point, const RealType fNumbe
 std::string DescInteriorSpaceTOV()
 {
 	ostringstream output;
-	output <<"#R[cm] M[g] MProper[g] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
+	output <<"#R[km] M[MSun] MProper[MSun] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
 	return output.str();
 	
 }
 ostream &operator<<( ostream &output, const SInteriorSpaceTOV &Point )
 {
 	output << scientific;
-	output << Point.fR<<" "<<Point.fM<<" "<<Point.fMProper<<" "<<Point.fP<<" "<<Point.fPhi<<" "<<Point.fDMDR<<" "<<Point.fDMProperDR<<" "<<Point.fDPDR<<" "<<Point.fDPhiDR;
+	const RealType fMSun(1.9891e33);
+	output << Point.fR/1e5<<" "<<Point.fM/fMSun<<" "<<Point.fMProper/fMSun<<" "<<Point.fP<<" "<<Point.fPhi<<" "<<Point.fDMDR<<" "<<Point.fDMProperDR<<" "<<Point.fDPDR<<" "<<Point.fDPhiDR;
 	return output;
 }
 
@@ -174,22 +176,18 @@ SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType
 	SInteriorSpaceTOV Result;
 
 	Result.fR=fEpsilon;
-	Result.fM=0.;
+	Result.fM=fRhoCentre*fEpsilon*fEpsilon*fEpsilon*(4./3.)*M_PI;
 	Result.fP=fPolytropicK*pow(fRhoCentre,fPolytropicGamma);
 	Result.fPhi=1.;
 
 	Result.fDMDR=m_MDerivative(Result);
 	Result.fDMProperDR=m_MProperDerivative(Result);
 
+	Result.fDPDR=0.;
+	Result.fDPDR=0.;
 	//Result.fDPDR=m_PDerivative(Result);
 	//Result.fDPhiDR=m_PhiDerivative(Result);
-	Result.fDPDR=0.;
-	Result.fDPDR=0.;
-
-
-	//TODO how to get over the very small mass?
-	Result.fM=Result.fDMDR*fEpsilon;
-
+	
 	return Result;
 }
 
@@ -299,7 +297,7 @@ void CPolytropeShooting::ComputeInterior()
 
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
-	const RealType fAlmostZero ( 1e-10);
+	const RealType fAlmostZero ( 1.);
 	const RealType fEnough(1.e-6);
 	RealType fStep(1.e-10);
 
