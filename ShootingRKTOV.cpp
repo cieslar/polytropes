@@ -1,7 +1,8 @@
 #include<iostream>
 #include<cmath>
-#include <limits>
+#include<limits>
 #include<cstdlib>
+#include<Debug.hpp>
 
 using namespace std;
 
@@ -10,7 +11,21 @@ using namespace std;
 //Can we estimate the needed precision of constants?
 const RealType gfG(6.67408e-8);///<Gravitational constant in [cm^3 g^-1 s^-2]
 const RealType gfC(29979245800.);///<Speed of light in [cm s-1] 
-                  
+const RealType gfBaryonMass(1.66e-24);///<Baryon mass in [g]
+//const RealType gfBaryonMass(1.);///<Baryon mass in [g]
+
+RealType DeKappify(const RealType fLoreneKappa, const RealType fGamma)
+{
+	const RealType cfRhoNuc(1.66e14);///<[g cm^-3]
+	const RealType cfNNuc(1.e38);///<[cm^-3]
+	//Translates Lorene units to cgs
+	return gfBaryonMass*fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
+
+
+	//Changes the equations from mass density to barion density to be consistent with Lorene.
+	//return fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
+}
+
 struct SInteriorSpaceTOV
 {
 	RealType fR;
@@ -141,6 +156,8 @@ public:
 	~CPolytropeShooting(){};
 
 };
+
+
 
 
 CPolytropeShooting::CPolytropeShooting(const RealType fGamma, const RealType fK, const RealType fRhoC)
@@ -366,11 +383,16 @@ int main(int argc, char** argv)
 	{
 		cout<<"Wrong number of arguments."<<endl;
 		cout<<"Correct usage (values in CGS):"<<endl;
-		cout<<"./PolyTOVShooting fPolytropicGamma fPolytropicK fRhoCentre"<<endl;
+		cout<<"./PolyTOVShooting fPolytropicGamma fPolytropicKappa(LoreneUnits) fRhoCentre"<<endl;
 		return 1;
 	}
 
-	CPolytropeShooting Poly(atof(argv[1]),atof(argv[2]),atof(argv[3]));
+	RealType fGamma(atof(argv[1]));
+	RealType fKappa(atof(argv[2]));
+	RealType fRhoCentre(atof(argv[3]));
+
+
+	CPolytropeShooting Poly( fGamma, DeKappify(fKappa, fGamma), fRhoCentre);
 	Poly.ComputeInteriorAdaptive();
 	//Poly.ComputeInterior();
 
