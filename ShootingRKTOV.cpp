@@ -10,18 +10,18 @@ using namespace std;
 
 //Can we estimate the needed precision of constants?
 const RealType gfG(6.67408e-8);///<Gravitational constant in [cm^3 g^-1 s^-2]
-const RealType gfC(29979245800.);///<Speed of light in [cm s-1] 
+const RealType gfC(2.99792458e10);///<Speed of light in [cm s-1] 
 const RealType gfBaryonMass(1.66e-24);///<Baryon mass in [g]
 //const RealType gfBaryonMass(1.);///<Baryon mass in [g]
 
 RealType DeKappify(const RealType fLoreneKappa, const RealType fGamma)
 {
 	const RealType cfRhoNuc(1.66e14);///<[g cm^-3]
-	const RealType cfNNuc(1.e38);///<[cm^-3]
+	//const RealType cfNNuc(1.e38);///<[cm^-3]
 	//Translates Lorene units to cgs
 //	return gfBaryonMass*fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
 
-	return fLoreneKappa*gfC*gfC;
+	return fLoreneKappa*gfC*gfC/pow(cfRhoNuc,fGamma-1.);
 
 	//Changes the equations from mass density to barion density to be consistent with Lorene.
 	//return fLoreneKappa*cfRhoNuc*gfC*gfC/pow(cfNNuc,fGamma);
@@ -81,7 +81,28 @@ SInteriorSpaceTOV operator+(const SInteriorSpaceTOV &Left, const SInteriorSpaceT
 	return Result;
 }
 
+SInteriorSpaceTOV operator*(const SInteriorSpaceTOV Point, const RealType fNumber)
+{
+	SInteriorSpaceTOV Result(Point);
 
+	Result.fR *= fNumber;
+	Result.fM *= fNumber;
+	Result.fMProper *= fNumber;
+	Result.fP *= fNumber;
+	Result.fPhi *= fNumber;
+
+	Result.fDMDR *= fNumber;
+	Result.fDMProperDR *= fNumber;
+	Result.fDPDR *= fNumber;
+	Result.fDPhiDR *= fNumber;
+
+	return Result;
+}
+
+SInteriorSpaceTOV operator*(const RealType fNumber, const SInteriorSpaceTOV Point)
+{
+	return Point*fNumber;
+}
 SInteriorSpaceTOV operator/(const SInteriorSpaceTOV Point, const RealType fNumber)
 {
 	SInteriorSpaceTOV Result(Point);
@@ -103,7 +124,8 @@ SInteriorSpaceTOV operator/(const SInteriorSpaceTOV Point, const RealType fNumbe
 std::string DescInteriorSpaceTOV()
 {
 	ostringstream output;
-	output <<"#R[km] M[MSun] MProper[MSun] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
+//	output <<"#R[km] M[MSun] MProper[MSun] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
+	output <<"#R[cm] M[g] MProper[g] P[dyn*cm^-2] Phi[holerawie] DMDR DMProperDR DPDR DPhiDR"<<endl;
 	return output.str();
 	
 }
@@ -111,7 +133,8 @@ ostream &operator<<( ostream &output, const SInteriorSpaceTOV &Point )
 {
 	output << scientific;
 	const RealType fMSun(1.9891e33);
-	output << Point.fR/1e5<<" "<<Point.fM/fMSun<<" "<<Point.fMProper/fMSun<<" "<<Point.fP<<" "<<Point.fPhi<<" "<<Point.fDMDR<<" "<<Point.fDMProperDR<<" "<<Point.fDPDR<<" "<<Point.fDPhiDR;
+	//output << Point.fR/1e5<<" "<<Point.fM/fMSun<<" "<<Point.fMProper/fMSun<<" "<<Point.fP<<" "<<Point.fPhi<<" "<<Point.fDMDR<<" "<<Point.fDMProperDR<<" "<<Point.fDPDR<<" "<<Point.fDPhiDR;
+	output << Point.fR<<" "<<Point.fM<<" "<<Point.fMProper<<" "<<Point.fP<<" "<<Point.fPhi<<" "<<Point.fDMDR<<" "<<Point.fDMProperDR<<" "<<Point.fDPDR<<" "<<Point.fDPhiDR;
 	return output;
 }
 
@@ -142,6 +165,8 @@ protected:
 
 	SInteriorSpaceTOV m_ApproximateSolutionInZero(const RealType fEpsilon) const; 
 	SInteriorSpaceTOV m_PropagateRKMethod(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const;
+	SInteriorSpaceTOV m_Propagate(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const;
+	SInteriorSpaceTOV m_PropagateRK2Method(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const;
 
 	RealType m_fPolytropicK2Gamma;
 public:
@@ -183,10 +208,10 @@ SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType
 	Result.fDMDR=m_MDerivative(Result);
 	Result.fDMProperDR=m_MProperDerivative(Result);
 
-	Result.fDPDR=0.;
-	Result.fDPDR=0.;
-	//Result.fDPDR=m_PDerivative(Result);
-	//Result.fDPhiDR=m_PhiDerivative(Result);
+	//Result.fDPDR=0.;
+	//Result.fDPhiDR=0.;
+	Result.fDPDR=m_PDerivative(Result);
+	Result.fDPhiDR=m_PhiDerivative(Result);
 	
 	return Result;
 }
@@ -194,18 +219,22 @@ SInteriorSpaceTOV CPolytropeShooting::m_ApproximateSolutionInZero(const RealType
 
 RealType CPolytropeShooting::m_MDerivative(const SInteriorSpaceTOV Point) const
 {
-	return ( 4.*M_PI*m_fPolytropicK2Gamma*Point.fR*Point.fR/pow(Point.fP,fPolytropicGamma) );
+	return ( 4. * M_PI * m_fPolytropicK2Gamma * Point.fR * Point.fR ) /
+               pow(Point.fP, fPolytropicGamma);
 }
 
 //TODO check if the metric is ok (after Shapiro)
 RealType CPolytropeShooting::m_MProperDerivative(const SInteriorSpaceTOV Point) const
 {
-	return ( 4.*M_PI*m_fPolytropicK2Gamma*Point.fR*Point.fR/pow(Point.fP,fPolytropicGamma) )*pow( (1.- (2.*gfG*Point.fM)/(Point.fR*gfC*gfC) ), -0.5 );
+	return m_MDerivative(Point) * pow( (1.- (2. * gfG * Point.fM ) / ( Point.fR * gfC * gfC) ), -0.5 );
 }
 
 RealType CPolytropeShooting::m_PDerivative(const SInteriorSpaceTOV Point) const
 {
-	return ( -gfG*Point.fM*m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma)/(Point.fR*Point.fR) )*(1.+pow(Point.fP,fPolytropicGamma+1.)/(gfC*gfC*m_fPolytropicK2Gamma))*(1.+4.*M_PI*Point.fR*Point.fR*Point.fR*Point.fP/(Point.fM*gfC*gfC))/(1.-(2.*gfG*Point.fM)/(Point.fR*gfC*gfC));
+	return ( -gfG * Point.fM * m_fPolytropicK2Gamma / (pow(Point.fP,fPolytropicGamma) * (Point.fR*Point.fR)) ) *
+               ( 1. + (pow(Point.fP,fPolytropicGamma+1.) / (gfC*gfC*m_fPolytropicK2Gamma) ) ) * 
+               ( 1. + (4. * M_PI * Point.fR * Point.fR * Point.fR * Point.fP / ( Point.fM * gfC * gfC ) ) ) / 
+               ( 1. - ( ( 2. * gfG * Point.fM ) / ( Point.fR * gfC * gfC ) ) );
 }
 
 
@@ -214,6 +243,47 @@ RealType CPolytropeShooting::m_PhiDerivative(const SInteriorSpaceTOV Point) cons
 {
 	return (-2./(Point.fP + gfC*gfC * m_fPolytropicK2Gamma/pow(Point.fP,fPolytropicGamma))) * m_PDerivative(Point);
 }
+
+
+SInteriorSpaceTOV CPolytropeShooting::m_Propagate(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const
+{
+	SInteriorSpaceTOV DResult;
+
+	DResult.Zero();
+
+	DResult.fR       = fDeltaR;
+	DResult.fM       = fDeltaR * m_MDerivative( PreviousPoint );
+	DResult.fMProper = fDeltaR * m_MProperDerivative( PreviousPoint );
+	DResult.fP       = fDeltaR * m_PDerivative( PreviousPoint );
+	DResult.fPhi     = fDeltaR * m_PhiDerivative( PreviousPoint );
+
+	return PreviousPoint+DResult;
+}
+
+SInteriorSpaceTOV CPolytropeShooting::m_PropagateRK2Method(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const
+{
+	SInteriorSpaceTOV K1, K2;
+
+	K1.Zero();
+	K1.fR       = fDeltaR;
+	K1.fM       = fDeltaR * m_MDerivative( PreviousPoint );
+	K1.fMProper = fDeltaR * m_MProperDerivative( PreviousPoint );
+	K1.fP       = fDeltaR * m_PDerivative( PreviousPoint );
+	K1.fPhi     = fDeltaR * m_PhiDerivative( PreviousPoint );
+
+	K1 = 0.5*K1 + PreviousPoint;
+
+	K2.Zero();
+	K2.fR       = fDeltaR;
+	K2.fM       = fDeltaR * m_MDerivative( K1 );
+	K2.fMProper = fDeltaR * m_MProperDerivative( K1 );
+	K2.fP       = fDeltaR * m_PDerivative( K1 );
+	K2.fPhi     = fDeltaR * m_PhiDerivative( K1 );
+
+	return (PreviousPoint+K2);
+
+}
+
 
 SInteriorSpaceTOV CPolytropeShooting::m_PropagateRKMethod(const SInteriorSpaceTOV PreviousPoint, const RealType fDeltaR) const
 {
@@ -282,24 +352,25 @@ void CPolytropeShooting::ComputeInterior()
 {
 	//const RealType fAlmostZero ( 10.*std::numeric_limits<RealType>::epsilon() );
 
-	const RealType fAlmostZero ( 1e-4);
-	const RealType fStep(1.e-5);
+	const RealType fAlmostZero ( 1e-5);
+	const RealType fStep(1.e-1);
 	SInteriorSpaceTOV PointOfInterest;
-	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
+	PointOfInterest = m_ApproximateSolutionInZero(0.01);
 	cout<<DescInteriorSpaceTOV();
 	cout<<PointOfInterest<<endl;
 	while (PointOfInterest.fP>fAlmostZero)
 	{
-		PointOfInterest = m_PropagateRKMethod(PointOfInterest,fStep);
+//		PointOfInterest = m_PropagateRKMethod(PointOfInterest,fStep);
+		PointOfInterest = m_Propagate(PointOfInterest,fStep);
 		cout<<PointOfInterest<<endl;
 	}
 }
 
 void CPolytropeShooting::ComputeInteriorAdaptive()
 {
-	const RealType fAlmostZero ( 1.);
-	const RealType fEnough(1.e-6);
-	RealType fStep(1.e-10);
+	const RealType fAlmostZero ( 1.e-1);
+	const RealType fEnough(1.e-5);
+	RealType fStep(1.e-2);
 
 	SInteriorSpaceTOV PointOfInterest, Small, Big;
 	PointOfInterest = m_ApproximateSolutionInZero(fAlmostZero);
@@ -312,6 +383,8 @@ void CPolytropeShooting::ComputeInteriorAdaptive()
 			fStep /= 2.;
 			Small = m_PropagateRKMethod( m_PropagateRKMethod(PointOfInterest,fStep/2.) , fStep/2.);
 			Big   = m_PropagateRKMethod( PointOfInterest,fStep);
+			//Small = m_Propagate( m_PropagateRKMethod(PointOfInterest,fStep/2.) , fStep/2.);
+			//Big   = m_Propagate( PointOfInterest,fStep);
 			//cout<<" "<<Small<<" "<<fStep/2.<<endl;
 			//cout<<" "<<Big<<" "<<fStep<<endl;
 			//cout<<" "<<MultiDimRelativeDifference(Small,Big) <<" "<< fEnough<<endl;
